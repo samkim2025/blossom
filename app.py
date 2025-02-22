@@ -2,10 +2,10 @@ import streamlit as st
 from streamlit_agraph import agraph, Node, Edge, Config
 import time
 import uuid
-
-# -- If you plan to use OpenAI or another LLM, uncomment and replace placeholders:
+import os
 import openai
 
+# Set the page configuration
 st.set_page_config(
     page_title="Mindmap Chat",
     layout="wide"
@@ -19,20 +19,17 @@ def generate_node_id() -> str:
     """Generate a unique node ID."""
     return str(uuid.uuid4())
 
-import openai
-import os
-
 def call_llm_api(user_query: str, context: str) -> str:
     """
-    Calls the OpenAI ChatCompletion API using the new API.
-    Make sure you have your API key set in st.secrets["OPENAI_API_KEY"] or as an environment variable.
+    Calls the OpenAI ChatCompletion API using the GPT-4o model.
+    Ensure that your API key is set in st.secrets["OPENAI_API_KEY"] or as an environment variable.
     """
-    # Set your API key, either from st.secrets or environment variables
+    # Set your API key from Streamlit secrets or environment variables
     openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
     
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o",  # Using the GPT-4o model
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": context},
@@ -54,7 +51,7 @@ def trigger_rerun():
 ###############################################################################
 
 if "mindmap" not in st.session_state:
-    # We'll store mindmap data in a dict:
+    # Store mindmap data in a dictionary:
     # mindmap["nodes"] = { node_id: { "id", "title", "content", "parent", "children", "branch_name" } }
     # mindmap["active_node"] = the node_id we are currently zoomed into / chatting in
     root_id = generate_node_id()
@@ -84,8 +81,7 @@ def get_active_node():
 
 def create_branch(branch_name: str):
     """
-    Create a new child node under the current active node, 
-    representing a branch with a user-defined name.
+    Create a new child node under the current active node, representing a branch with a user-defined name.
     """
     parent_id = st.session_state.mindmap["active_node"]
     new_id = generate_node_id()
@@ -97,16 +93,15 @@ def create_branch(branch_name: str):
         "children": [],
         "branch_name": branch_name
     }
-    # Link from parent to child
+    # Link the new branch to its parent
     st.session_state.mindmap["nodes"][parent_id]["children"].append(new_id)
-    # Move focus (active_node) into the new branch
+    # Set the new branch as the active node
     st.session_state.mindmap["active_node"] = new_id
     trigger_rerun()
 
 def return_to_parent():
     """
     Return to the parent node of the current active node.
-    The branch remains in the data structure but we are no longer "in" it.
     """
     active_id = st.session_state.mindmap["active_node"]
     node = st.session_state.mindmap["nodes"][active_id]
@@ -118,19 +113,19 @@ def return_to_parent():
 
 def add_chat_message(user_query: str):
     """
-    Simulate an LLM chat: user provides a query, 
-    we fetch context from the active branch, get a response, and store it.
+    Simulate an LLM chat: the user provides a query, we build context from the active branch,
+    fetch a response from the GPT-4o API, and store the conversation turn.
     """
     active_node = get_active_node()
     
-    # Build a simple context from all content in the active branch
+    # Build context from all previous conversation turns in the active branch
     full_context = ""
     for turn in active_node["content"]:
         full_context += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
     
-    # Call the LLM (placeholder)
+    # Call the LLM API with the context and user query
     assistant_reply = call_llm_api(user_query, full_context)
-    # Store new conversation turn
+    # Append the new conversation turn
     active_node["content"].append({"user": user_query, "assistant": assistant_reply})
     trigger_rerun()
 
@@ -140,15 +135,14 @@ def add_chat_message(user_query: str):
 
 def render_mindmap():
     """
-    Show a graph visualization of the entire mindmap using streamlit_agraph.
+    Render a graph visualization of the entire mindmap using streamlit_agraph.
     """
-    # Collect nodes and edges
     nodes_data = []
     edges_data = []
     
     for node_id, node_info in st.session_state.mindmap["nodes"].items():
         label = node_info["branch_name"]
-        # Highlight the active node
+        # Highlight the active node with a distinct color
         color = "#FFCC00" if node_id == st.session_state.mindmap["active_node"] else "#99CCFF"
         nodes_data.append(
             Node(
@@ -186,7 +180,7 @@ def main():
     active_node = get_active_node()
     st.subheader(f"Current Branch: {active_node['branch_name']}")
     
-    # Show conversation content
+    # Show conversation history for the active branch
     if active_node["content"]:
         for turn in active_node["content"]:
             st.markdown(f"**User**: {turn['user']}")
@@ -195,14 +189,14 @@ def main():
     else:
         st.info("No conversation yet in this branch.")
 
-    # -- Chat form
+    # -- Chat input form
     with st.form("chat_form"):
         user_query = st.text_area("Ask a question or add to this conversation:", key="user_input", height=100)
         submitted = st.form_submit_button("Submit")
         if submitted and user_query.strip():
             add_chat_message(user_query.strip())
     
-    # -- Buttons for branching and returning
+    # -- Branching and navigation buttons
     c1, c2, c3 = st.columns([1, 1, 1])
     
     with c1:
@@ -224,7 +218,7 @@ def main():
 
     st.markdown("---")
     
-    # -- Optionally show the entire mindmap
+    # -- Optionally display the mindmap visualization
     if st.session_state.get("show_mindmap", False):
         st.subheader("Mindmap Overview")
         render_mindmap()
