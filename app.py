@@ -44,7 +44,7 @@ def call_llm_api(user_query: str, context: str) -> str:
 
 def trigger_rerun():
     """Force a rerun by updating query parameters."""
-    st.experimental_set_query_params(rerun=str(uuid.uuid4()))
+    st.query_params(rerun=str(uuid.uuid4()))
 
 ###############################################################################
 # INITIALIZATION
