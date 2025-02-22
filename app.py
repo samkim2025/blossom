@@ -19,27 +19,31 @@ def generate_node_id() -> str:
     """Generate a unique node ID."""
     return str(uuid.uuid4())
 
+import openai
+import os
+
 def call_llm_api(user_query: str, context: str) -> str:
     """
-    Placeholder function to call your LLM of choice.
-    Replace the body with your actual LLM logic (OpenAI, Anthropic, etc.).
-    This function receives the user query plus any relevant conversation context.
+    Calls the OpenAI ChatCompletion API using the new API.
+    Make sure you have your API key set in st.secrets["OPENAI_API_KEY"] or as an environment variable.
     """
-    # Example with OpenAI (uncomment if needed):
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": context},
-            {"role": "user", "content": user_query}
-        ]
-    )
-    return response.choices[0].message["content"].strip()
+    # Set your API key, either from st.secrets or environment variables
+    openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
     
-    # For demonstration, just echo back:
-    time.sleep(1)  # Simulate some latency
-    return f"LLM response to '{user_query}' (context length: {len(context)} chars)."
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": context},
+                {"role": "user", "content": user_query}
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message["content"].strip()
+    except Exception as e:
+        st.error(f"Error calling OpenAI API: {e}")
+        return "Error fetching response from LLM."
 
 def trigger_rerun():
     """Force a rerun by updating query parameters."""
