@@ -3,7 +3,7 @@ from streamlit_agraph import agraph, Node, Edge, Config
 import time
 import uuid
 import os
-import openai
+from openai import OpenAI
 
 # Set page configuration
 st.set_page_config(
@@ -19,20 +19,20 @@ def generate_node_id() -> str:
     """Generate a unique node ID."""
     return str(uuid.uuid4())
 
+# Initialize the OpenAI client using the new API interface.
+# You can set your API key via st.secrets or environment variables.
+client = OpenAI(
+    api_key=st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
+)
+
 def call_llm_api(user_query: str, context: str) -> str:
     """
-    Calls the OpenAI ChatCompletion API using the GPT-4o model.
-    Ensure that your API key is set in st.secrets["OPENAI_API_KEY"] or as an environment variable.
-    
-    IMPORTANT: If you're using openai>=1.0.0, please run `openai migrate` to update your codebase,
-    or pin your installation to openai==0.28 if you want to keep the old interface.
+    Calls the OpenAI chat completions API using the new client interface.
+    The context and user_query are passed as messages.
     """
-    # Set API key from st.secrets or environment variable
-    openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
-    
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",  # Use the appropriate model (adjust if needed)
+        response = client.chat.completions.create(
+            model="gpt-4o",  # change this to your desired model
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": context},
@@ -40,15 +40,13 @@ def call_llm_api(user_query: str, context: str) -> str:
             ],
             temperature=0.7
         )
-        # Access the content from the response using the new dictionary style
-        return response["choices"][0]["message"]["content"].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         st.error(f"Error calling OpenAI API: {e}")
         return "Error fetching response from LLM."
 
 def trigger_rerun():
     """Force a rerun by updating query parameters."""
-    # Use st.experimental_set_query_params instead of st.query_params
     st.experimental_set_query_params(rerun=str(uuid.uuid4()))
 
 ###############################################################################
@@ -193,7 +191,7 @@ def main():
         if submitted and user_query.strip():
             add_chat_message(user_query.strip())
     
-    # Branch navigation buttons
+    # Branching and navigation buttons
     c1, c2, c3 = st.columns([1, 1, 1])
     with c1:
         branch_name = st.text_input("Branch name", key="branch_name")
@@ -212,7 +210,7 @@ def main():
 
     st.markdown("---")
     
-    # Optionally render the mindmap
+    # Optionally render the mindmap visualization
     if st.session_state.get("show_mindmap", False):
         st.subheader("Mindmap Overview")
         render_mindmap()
