@@ -28,14 +28,14 @@ def call_llm_api(user_query: str, context: str) -> str:
     # Example with OpenAI (uncomment if needed):
     openai.api_key = st.secrets["OPENAI_API_KEY"]
     response = openai.ChatCompletion.create(
-         model="gpt-3.5-turbo",
-         messages=[
-             {"role": "system", "content": "You are a helpful assistant."},
-             {"role": "user", "content": context},
-             {"role": "user", "content": user_query}
-         ]
-     )
-     return response.choices[0].message["content"].strip()
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": context},
+            {"role": "user", "content": user_query}
+        ]
+    )
+    return response.choices[0].message["content"].strip()
     
     # For demonstration, just echo back:
     time.sleep(1)  # Simulate some latency
