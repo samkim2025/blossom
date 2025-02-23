@@ -25,19 +25,24 @@ client = OpenAI(
     api_key=st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 )
 
-def call_llm_api(user_query: str, context: str) -> str:
+def call_llm_api(user_query: str, conversation_history: list) -> str:
     """
-    Calls the OpenAI chat completions API using the new client interface.
-    The context and user_query are passed as messages.
+    Calls the OpenAI chat completions API with proper conversation history formatting.
     """
     try:
+        messages = [{"role": "system", "content": "You are a helpful assistant."}]
+        
+        # Add previous conversation history with proper roles
+        for turn in conversation_history:
+            messages.append({"role": "user", "content": turn["user"]})
+            messages.append({"role": "assistant", "content": turn["assistant"]})
+        
+        # Add new user query
+        messages.append({"role": "user", "content": user_query})
+
         response = client.chat.completions.create(
-            model="gpt-4o",  # change this to your desired model
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": context},
-                {"role": "user", "content": user_query}
-            ],
+            model="gpt-4o",  # Use valid model name (e.g., "gpt-4", "gpt-3.5-turbo")
+            messages=messages,
             temperature=0.7
         )
         return response.choices[0].message.content.strip()
@@ -116,15 +121,14 @@ def add_chat_message(user_query: str):
     """
     active_node = get_active_node()
     
-    # Build context from the conversation history in the active node
-    full_context = ""
-    for turn in active_node["content"]:
-        full_context += f"User: {turn['user']}\nAssistant: {turn['assistant']}\n"
+    # Get conversation history from active node
+    conversation_history = active_node["content"]
     
-    assistant_reply = call_llm_api(user_query, full_context)
+    # Call LLM with proper history formatting
+    assistant_reply = call_llm_api(user_query, conversation_history)
     active_node["content"].append({"user": user_query, "assistant": assistant_reply})
     trigger_rerun()
-
+    
 ###############################################################################
 # VISUALIZATION
 ###############################################################################
